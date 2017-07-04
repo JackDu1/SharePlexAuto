@@ -1,0 +1,12 @@
+use sp_ss
+IF OBJECT_ID('sp_ss.ssc_varchar', 'U') IS NOT NULL
+drop table sp_ss.ssc_varchar
+go
+create table sp_ss.ssc_varchar (COL_NUMBER numeric(25,2) PRIMARY KEY,
+COL_VARCHAR1 VARCHAR(500),
+COL_VARCHAR2 VARCHAR(1000),
+COL_VARCHAR3 VARCHAR(1001),
+COL_VARCHAR4 VARCHAR(4000),
+COL_VARCHAR5 VARCHAR(8000),
+COL_VARCHAR6 VARCHAR(max))
+go

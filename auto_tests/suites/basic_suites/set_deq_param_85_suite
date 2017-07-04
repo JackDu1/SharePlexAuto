@@ -1,0 +1,4 @@
+#!/usr/bin/ksh
+export suite_name="set_deq_param_85_suite"
+export AUTO_SUITE_ID=2467
+./driver $ENV_LIST demo_list deq_param_85_tlist y a

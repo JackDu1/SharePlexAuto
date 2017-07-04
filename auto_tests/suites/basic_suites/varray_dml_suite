@@ -1,0 +1,9 @@
+#!/usr/bin/ksh
+export suite_name="varray_dml_suite"
+export AUTO_SUITE_ID=2408
+export AUTO_SKIP_SUITE_ORA_8I=1
+export AUTO_SKIP_SUITE_ORA_9I=1
+export AUTO_SKIP_SUITE_SPO_VER="8.0.2.X"
+export AUTO_SRC_SP_USER="sp_ddl_all"
+export AUTO_DST_SP_USER="sp_ddl_all"
+./driver $ENV_LIST varr_dml_conf_list varr_dml_test_list y a

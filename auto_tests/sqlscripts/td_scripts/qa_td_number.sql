@@ -1,0 +1,14 @@
+/*   2-22-2017 Julia: check SPO-2044, table created with number size bigger (+1) than Oracle  */
+DROP TABLE sp_td.qa_number
+go
+CREATE TABLE sp_td.QA_NUMBER
+(
+  COL_NUMBER  NUMBER(26,2) NOT NULL,
+  COL_NUMBER1   NUMBER(21,7),
+  COL_NUMBER2   NUMBER(25,4),
+  COL_NUMBER3   NUMBER(27,2),
+  COL_NUMBER4   NUMBER(28,1),
+  COL_NUMBER5   NUMBER(29),
+CONSTRAINT "PK_QA_NUMBER" PRIMARY KEY("COL_NUMBER"))
+go
+\quit

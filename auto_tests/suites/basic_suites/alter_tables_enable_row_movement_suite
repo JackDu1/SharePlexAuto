@@ -1,0 +1,8 @@
+#!/usr/bin/ksh
+#Create by Ilya Rubizhevsky 03/11/05 to alter SP_2.QA_PARTITION_IDX, SP_3.QA_SUBPARTITION,SP_3.QA_RANGE_PART_DIFF_TBS,SP_3.QA_RANGE_LOB_PART,SP_3.QA_COMPOSITE_PART,SP_3.QA_RANGE_PART_LOB_DIS_INROW,SP_3.QA_SUBPARTITION_LOB_DIS_INROW,SP_5.QA_RANGE_PART_LOB_DIS_INROW,SP_5.QA_SUBPARTITION_LOB_DIS_INROW,SP_LOB_16K.QA_LOB_REG_TAB_PART_7,SP_LOB_16K.QA_LOB_REG_TAB_PART_7  tables enable row movement on source and target
+#This suite is supported for SPO 5.0 and up / Oracle 9i and up.
+#This suite is supposed to run in the very beginning of master suite
+#This suite should not be run if CR#113683 still outstanding. 
+#This suite can be used to enable row_movement if alter_table_disable_row_movement_suite was used to disable row_movement
+export suite_name=alter_tables_enable_row_movement_suite
+./driver $ENV_LIST alt_enbl_rowm_conf_list alt_enbl_rowm_test_list y a

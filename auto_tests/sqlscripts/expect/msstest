@@ -1,0 +1,51 @@
+#!/usr/bin/expect --
+source $env(AUTO_EXPECT_DIR)/NetLib.exp
+global UNIX_FALSE UNIX_TRUE WINDOWS UNIX PLATFORM OS
+
+set current_test   [open [lindex $argv 0] r]
+
+set timeout 60
+set Stat $UNIX_TRUE
+
+puts "Running msstest on remote test machine..."
+
+spawn telnet $env(this_hostname)
+#LogInToHost "Administrator" "habuqa"
+LogInToHost $env(winadmin) $env(winpasswd)
+
+log_file $env(AUTO_TEST_CASE_LOG)
+send "cd $env(AUTO_MSSTEST_LOCAL_DIR)\r"
+expect "#"
+send ".\\msstest.exe -server $env(this_hostname) -user $env(this_spadmin) -database $env(this_sid)\r"
+
+sleep 2
+
+expect {
+    "\>" {}
+    "#" {puts "run msstest failed!";exit $Stat}
+    timeout {puts "Timeout";exit $Stat}
+}
+
+log_file
+
+while { [gets $current_test line] != -1} {
+    send "$line\r"
+
+    while 1 {
+        expect {
+            "\>"                 { break }
+            "Memory fault"       { set Stat $UNIX_FALSE; break }
+            "Segmentation fault" { set Stat $UNIX_FALSE; break }
+            "core dumped"        { set Stat $UNIX_FALSE; break }
+            timeout {puts "Timeout";exit $Stat}
+        }
+    }
+
+}
+
+send "exit\r"
+expect "#"
+close $current_test
+send "exit\r"
+expect EOF
+exit $Stat

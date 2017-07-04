@@ -1,0 +1,463 @@
+#!/usr/bin/ksh
+#4-6-2017 Julia - do not run disable_lobmap_v1_suite, we got many OOS when lobmap is disabled in 9.0. Instead, run enable_lobmap_suite
+#4-28-2015 add new suite delete_cascade_suite (Lighter)
+#2-23-2015 add new suites to 8.6.1 master suties (multi_12_otest_5k_reroute_suite, vz_109206_110838_suite, prb_psp_suite)
+#11-21-2014 Julia copied from qa_pkui_86_suite add export AUTO_DST_RESCAN=1
+#8-26-2014 Julia created out of qa_mix_86_suite for 8.6, replace old iot suites with iot*mix*suite
+#8-26-2014 Julia: Basic replication,NO TDE,NO oltp comp,Oracle db_securefile initial parameter=preferred (=default to basicfile),no securefile compression 
+######################################################
+#   suites adjustments during 863_854_808 test cycle
+######################################################
+#
+#   ./alldb_char_suite   New generic suite for all database targets (oracle, sqlserver, ppas)
+#   ./SPO-1353_multi_30_otest_suite  new suites created to validate SPO-1353
+#   ./xml_file_nolob_suite  replace xml_file_suite
+#   ./hash_hp_v2_suite   Replace hash_hv_suite
+#
+#    TB MOVE DOWN
+#./alldb_char_suite
+#./SPO-1353_multi_30_otest_suite
+# SPO-1688 datadragon update issue  on pre-null column
+#./xml_file_nolob_suite
+#./hash_hp_v2_suite
+########################################################################################################################################
+#  TDE Support History
+########################################################################################################################################
+#  7.6.0 Column Encryption (query based slow)
+#  8.0.0 changed to trigger based column encryption 
+#  8.0.1 changed to use Oracle dbms_internal_clkm package to create SharePlex shared secret KEY to support tablespace TDE.
+#  8.0.3 shared secret KEY replaced by sp_wallet.
+#  8.5 TDE refactor + rekey
+########################################################################################################################################
+#######                                                        Pre-test Setup                                                    #######
+########################################################################################################################################
+. ./mstrlib.ksh
+export master_suite_name=qa_pkui_863_suite
+export ENV_LIST=$1
+#export SP_TEST_FORCE_DEACT=1
+InitMstSuite "$@"
+export AUTO_FLUSH_TIMEOUT=3600
+##################################################################
+#######    Master Suite SPO configuration                  #######
+##################################################################
+#enable if running against pdb on source
+#export AUTO_SRC_PDB=1
+export AUTO_DST_PRESCAN=0
+##################
+#   SharePlex    #
+##################
+./check_system_time_suite
+./set_deq_param_85_suite
+./enable_lobmap_suite
+#./disable_lobmap_v1_suite   -- cause OOS, can't be run until lobmap issue is fixed (dev will create a new Jira for it for later release)
+##################
+#   Database     #
+##################
+./add_supp_log_pkui_92_v2_suite
+./set_deferred_segment_creation_suite
+./system_flush_suite
+##############################################################################################################################################
+# set up lob default in database, 11g is basicfile, 12c is securefile, 10g does not support securefile
+# as of 1-13-2014 cannot do it here if securefile is compressed, SPO 8.5 cannot support securefile compress on binary xml and varray
+##############################################################################################################################################
+#
+./set_db_securefile_permitted_suite
+#
+#################################################################################################
+# Securefile Compression Setting (unset any previous export of AUTO_SECUREFILE_LOB variable)
+#################################################################################################
+#
+unset AUTO_SECUREFILE_LOB
+#
+##########################################################################################
+# set up tablesa copied from qa_longsuite_rtm_86_suite add export AUTO_DST_RESCAN=1pace to no compression
+##########################################################################################
+./stenv_noencr_nocompr_src_suite
+./stenv_noencr_nocompr_dst_suite
+./alter_tables_enable_row_movement_suite
+#################################################################################################
+###     KNOWN ISSUE / UNSUPPORTED ISSUE -- 8.0.3 as of 11-11-2013                                                           #
+#################################################################################################
+./geometry_compare_repair_vp_suite
+#################################################################################################
+###     KNOWN ISSUE  -- Oracle 12c in 8.0.2 as of 11-11-2013                                                           #
+#################################################################################################
+./xmltype_clob_securefile_suite
+./ddl_regr_func_based_ind_51_92_nofloat_suite
+./CR124544_SPO532_suite
+./multi_12_otest_4k_lob_suite
+./rowid_repair_suite
+./SPO61_lobcache_suite
+#################################################################################################
+#################  not 12c but known issue not fixed in 8.0.2 as of 11-11-2013
+#################################################################################################
+./new_column_enc_simple_suite
+./add_drop_move_lob_v2_suite
+######################################################
+###     KNOWN ISSUE in 8.0.x                         #
+######################################################
+./large_ddl_suite
+#################################################################################################
+###     KNOWN ISSUE in 7.6.0.ga b#35 reviewed 12-18-2012 after 8.0.0.16 release                 #
+#################################################################################################
+./auto_add_typeck_enc_tbsp_short_suite
+###################################################################################################################################################
+# New suite added in 8.6.4 
+###################################################################################################################################################
+./dml_ddl_interval_partition_suite
+./binary_xml_external_suite
+###################################################################################################################################################
+# New in 8.6.3
+# HP by HASH, Encryption & Compression between Export and Import, Auto Open Wallet (Tested by QA)
+# Fast Recovery (Resume replication), N Datatype support for SQL Server posting, Queue performance enhancements, OTS
+###################################################################################################################################################
+# New in 8.6.3 Part two (updated 11/30/2015 by Julia):
+# SQL Server N'type support is deferred to 9.0 (SPO-1819)
+# Open Post replicating to PPAS
+# Installation PPAS only without Oracle (if souce Oracle CS is Unicode so we don't need to use Oracle CS conversion)
+# auto add sequence (add spo863_sequence_suite and retired new_sequence_45_v1_suite)
+###################################################################################################################################################
+./spo863_sequence_suite
+./materialized_view_suite
+./multi_8_otest_hash_mq_suite
+./ora_cleansp_suite
+./multi_8_otest_hash_mq_exp_enc_suite
+./ora_cleansp_suite
+./multi_8_otest_hash_mq_exp_comp_suite
+./ora_cleansp_suite
+./multi_8_otest_hash_mq_exp_enc_comp_suite
+./ora_cleansp_suite
+#./hash_hp_suite 6-16-2015 too many queues caused exa2dbadm01 used up all memory and hung, changes made
+./hash_hp_v2_suite
+#./hash_hp_suite
+./ora_cleansp_suite
+./prb_psp_suite
+#./delete_cascade_suite open CR SPO-1177
+./delete_cascade_v1_suite
+###################################################################################################################################################
+# New in 8.6.2
+# DELETE CASCADE using SP_OPO_DEPENDENCY_CHECK=2, REPLICATE AUTO ADD create MATERIALIZED VIEW
+###################################################################################################################################################
+#skip CR110877 (closed as dup of SPO-1059)
+#./multi_12_otest_5k_reroute_suite
+#4-24-2015 comment out due to CR110838 fix is reverted from 8.6.2.43 (GA)
+#./vz_109206_110838_suite
+#CR110912 AND spo1179
+#Toend./prb_psp_suite
+#SPO-1177
+#Toend./delete_cascade_suite
+###################################################################################################################################################
+# New in 8.6 prescan post (set SP_OPO_PS_DEPENDENCY_CHECK 1), capture performance (ASM), posting to xmlfile, SQL Server post (new suite not in),
+# Oracle 12.1.0.1 on AIX, HP IA, Oracle 12.1.0.2, Oracle 12c CDB/PDB 
+# Windows 2012, 2012R2, New installer for Windows 
+# Connection change (connections.yaml), ora_setup support remote connection (db & asm), 
+###################################################################################################################################################
+./prescan_suite
+./activate_demo_suite
+#reset_prescan_suite must have post process running (need to bounce post to reset sp_opo_dependency_check) , add activate_demo_suite prior to it
+./reset_prescan_suite
+#skip CR110475 (SPO-1213)
+#./xml_file_suite
+# following are new iot suites to replace all old iot suites
+./iot_dml_ddl_mix_suite
+./iot_hrz_vrt_mix_suite
+./iot_sqlldr_mix_suite
+./iot_ddl_partition_mix_suite
+./iot_compress_mix_suite
+./auto_add_setup_suite
+./auto_add_iot_mix_suite
+#uncomment due to CR108045 fixed 8.0.183
+./add_drop_move_lob_longtolob_debug
+###################################################################################################################################################
+# New in 8.5 - 12c tolerant (AIX, HP ia)
+# SECUREFILE LOB COMPRESSION, BINARY XML (not include save as securefile with compression), TDE refactor + REKEY,  SYBASE POSTER, HASH COMPARE
+###################################################################################################################################################
+#SECUREFILE LOB  - dmls are tested using existing suites + export $AUTO_SECUREFILE_LOB with db_securefile set at beginning of master suite
+#New suites created:
+#dbms_xml_suite all xml columns are created as CLOB
+./dbms_xml_suite
+#New, fail when compresison is on CR108764
+./varray_dml_suite
+#alter table add/drop/modify securefile columns incl compress high/medium, cache
+./securefile_lob_suite
+#auto_add securefile lob tables + alter table add/drop/modify securefile lob columns incl compress hi/low
+./auto_add_setup_suite
+./auto_add_securefile_lob_suite
+#old suites always commented out since 7.6,  add to 8.5 now
+./dbms_lob_erase_securefile_suite
+#old suites always commented out since 7.6,  add to 8.5, fail when compression is on 
+#./varray_securefile_suite 1-21-2014 julia comment out, suite created at 7.6 always commented out, add back to 85 but too many script bad row index error
+#existing suite, faile when compression is on CR108764, fixed when compession is off CR108763
+./varray_rme_suite
+#BINARY XML
+#must be run without securefile compression, this is done at the end after unset AUTO_SECUREFILE_LOB environment variable
+./xmltype_clob_blob_suite
+./dbms_xml_blob_suite
+./xml_blob_sqlload_suite
+./auto_add_setup_suite
+./auto_add_xml_blob_suite
+#1-20-2014 Julia comment out alter_table_xml_blob_suite (8.5 new suite) due to CR108941; 8/26/2014 Julia 108941 fixed 8.5.0.12  
+./alter_table_xml_blob_suite
+#HASH COMPARE
+#SYBASE POSTER
+#TDE - use 8.0.3 test suites, manual test rekey CR108837, 108840
+###################################################################################################################################################
+# New in 8.0.3 -  Oracle 12c tolerance (Windows), compare and repair UDT and SDO_GEOMETRY varray, official announce CTAS, dml filter, compare authetication, and analyze to scn
+# CTAS not checked in CR108390 parameter SP_OCT_REPLICATE_CTAS does not exist 
+###################################################################################################################################################
+##more cdc suites per Robin's request, test diffierent sorts of operations make sure no regress, we do NOT validate data
+./multi_15_otest_3k_lob_cdc_suite
+./cdc_sqlload_dload_suite
+./dml_udt_compare_repair_suite
+./geometry_compare_repair_suite
+./dml_routing_hrz_vrt_v2_suite
+./ora_cleansp_suite
+./ddl_regr_51_92_nofloat_suite
+./dbms_lob_erase_v3_suite
+./prepared_conflict_procedure_spo750_suite
+./post_target_config_v1_suite
+###################################################################################################################################################
+# New in 8.0.2 - Oracle 12c Tolerant (Linux & Solaris), ANYDATA, replicate ST_GEOMETRY (no compare), dml filtering, Min support CTAS, OPX ti file(air force), 
+# activate & analyze from scn, reduce malloc in capture especially RAC, compare authentication (disable job to prevent m2m target compare,copy,sync 
+###################################################################################################################################################
+#anydata cannot be run with compressed securefile, it is run at the end when compression of securefile is unset (unset AUTO_SECUREFILE_LOB) 
+./801_cdc_tc_suite
+./ora_cleansp_suite
+./anydata_sqlload_suite
+./anydata_dload_suite
+./anydata_vert_part_suite
+./anydata_suite
+./auto_add_setup_suite
+./auto_add_anydata_v1_suite
+########################################################################################################################################
+# New in 8.0.1  TDE replace original column enc (query Oracle) and fsv (8,0 trigger based) encrypt, ASM use new Oracle API, ANALYZE 
+########################################################################################################################################
+./alter_table_encrypt_column_v1_suite
+./auto_add_setup_suite
+./auto_add_column_enc_simple_dml_suite
+./activation_typecheck_encrypt_col_suite
+########################################################################################################################################
+# New in 8.0 - Binary Float, Binary Double, HCC on exadata, Open Target JMS, Consolidate Target, Target Config, Change Tracking v2 (cdc),
+#              remove all character set parameters, new SP_OPO_NLS_CONVERSION, Compare Status command changed, Compary Sanity Check 
+########################################################################################################################################
+# New in 8.0
+./activate_demo_suite
+./binary_suite
+./compare_sanity_check_suite
+#7-31-2013 julia temporarialy moved to to commented out section at the end for 8.0.2 
+#./nls_suite
+#./nls_n_suite
+./interval_full_rollback_suite
+###############################################
+#refer to Ilya's email dated Mar01, 2013 for manual setup
+#./jms_setup_suite     --move to known issue in 8.0.3 (CR107794 null and empty_clob are same in jms ticket, data-dragon failed)
+#./jms_insert_suite     --move to known issue in 8.0.3 (CR107794 null and empty_clob are same in jms ticket, data-dragon failed)
+###########################################################################################################################################
+# New in 7.6.2 - release as 763 - Interval, change tracking v1, post restrict_all_ref_cons hint, ability to specify commit NOWAIT on target 
+###########################################################################################################################################
+./multiple_objects_ddl_suite
+#8-28-2014 Julia add ora_cleansp inside last test case 19007 of 763_compare_route_suite 
+./763_compare_route_suite
+#./ora_cleansp_suite
+./ora_cleansp_suite
+./modify_move_lob_suite
+./compare_repair_hp_one_route_suite
+#CR95850 fix (after add a partition, lob replication stopped)
+./add_part_spart_lob_suite
+./capture_ckpt_debug
+#9-28_2012 skip anydata suites again since it is removed from 8.0 now
+#./anydata_suite
+./lob_add_sub_part_suite
+###############################################
+#   INTERVAL
+###############################################
+./interval_dload_suite
+./interval_sqlload_suite
+./interval_suite
+###########################################################################################################################################
+# New in 7.6.1 - all activation is LIVE now
+##############################################################################################
+# New in 7.6.0 - fully 64bit, OLTP Compression, Column Encryption, Securefile Lob      #
+###                      Securefile Lob Specific - NO Compression     #
+##############################################################################################
+#./alter_tablespace_nocompress_suite
+./dload_lob_securefile_suite
+./lob_upd_securefile_suite
+#CR107480 securefile on TDE tablespace capture error Exceeding our SLT limit... [open as of 7/30/2013]
+#move to 12c issue for tde env 
+#./xmltype_clob_securefile_suite
+./dml_ddl_lob_rme_securefile_suite
+#./alter_tablespace_nocompress_suite
+########################################################################################
+./verizon_compress_suite
+./alter_compress_suite
+#CR109002 targeted 8.6, then change to 'As Design' 2014/7/18 by Olga, reopen this suite due to Eko provided Thang oneoff CR110647 in 8.6.0 (pass once)
+#know issue 8.5 ./table_compress_for_all_no_rollback_dml_suite 
+./table_compress_for_all_no_rollback_dml_suite
+#./alter_move_compress_suite  #ora-07445
+./alter_move_compress_v1_suite
+######################################################
+###      Large Suites Used in Level 2                #
+######################################################
+# 1-22-2014 Julia activation_50000_table_suite takes long time to clean up in most of QA environments and delays test, move it to run in HCC  master suite only
+#./activate_50000_tables_suite
+./system_flush_suite
+./ora_cleansp_suite
+./ddl_partition_hrz_vrt_v3_suite
+./ora_cleansp_suite
+######################################################
+###           PART I  
+######################################################
+./activate_demo_suite
+./multi_8_otest_v2_suite
+./multi_16_otest_v2_suite
+./multi_15_otest_3k_lob_suite
+#check 8.0.2 issue section
+#./rowid_repair_suite
+./dml_lob_part_nocache_60_v1_suite
+./pkuk_regression_v1_suite
+./inlist_suite
+./CR1438_SPO532_suite
+./replicate_bfile_compare_repair_v1_suite
+./hori_verti_array_insert_suite
+./reconcile_flush_direct_ins_v1_suite
+./reconcile_suite
+./reconcile_flush_suite
+./activate_demo_suite
+./unicode_n_unistr_50_suite
+./activate_unicode_suite
+./activate_demo_suite
+./partial_rollback_dml_v1_suite
+./partial_rollback_combined_operation_v1_suite
+./partial_rollback_multi_log_suite
+./activation_lmt_chain_v1_suite
+./subpartition_rowchain_50_no_abort_v2_suite
+./lmt_chain_50_92_v2_suite
+./threads_32_activation_v1_suite
+./threads_10_activation_v1_suite
+#./new_sequence_45_v1_suite
+./spatial_objects_v2_suite
+./conv_load_v1_suite 
+./sqlload_v1_suite
+#./direct_load_v2_suite 6/3/2011 Julia, replace v2 with v3 due to qa_ddml.sql change
+./direct_load_v3_suite
+./activate_demo_suite
+./transformation_array_insert_suite
+./sp_que_post_shmsize_8mb_50_suite
+./ora_cleansp_suite
+./reset_param_sp_que_post_shmsize_50_suite
+./cop_start_param_shmdbuf_v1_suite
+./CR1441_SPO532_suite
+./CR1446_SPO532_suite
+./CR1452_SPO532_suite
+./CR1686_SPO532_suite
+./CR1584_SPO532_suite
+./CR1456_SPO532_suite
+./CR1631_SPO532_suite
+./CR105118_SPO532_suite
+./CR86708_SPO532_suite
+./CR67099_SPO532_suite
+./CR107491_SPO532_suite
+./CR164693_SPO532_v1_suite
+./ora_cleansp_suite
+./dml_on_diff_initrans_suite
+./dml_lob_dbc_cache_60_v1_suite
+######################################################
+###             PART II              #
+######################################################
+./lob_regression_cache_off_suite
+./rep_comp_lob_part_cache_on_suite
+./compare_repair_lob_cache_off_suite
+./mtp_partial_rollback_lob_cache_on_v1_suite
+./udt_cache_off_suite
+./filter_setup_suite
+./filter_dml_ddl_activity_v3_suite
+./filter_dml_routing_hrz_vrt_v2_suite
+./ora_cleansp_suite
+./filter_sqlload_v1_suite
+#add_drop_xml_suite all xml columns are created as CLOB
+./add_drop_xml_suite
+./dml_partial_rollback_suite
+#11-8-2012 use v1 suite in 8.0 due to compare ui changed
+#./SPO70_compare_quickcheck_suite
+./SPO70_compare_quickcheck_v1_suite
+#./SPO70_compare_quickcheck_suite
+export AUTO_EXIT_SUITE_ON_ERROR
+./dml_TZR_SPO533_suite
+./bpe_hp_suite
+./ddl_case_sensitive_tabs_cols_v3_suite
+./dload_lob_suite
+./wildcard_suite
+./11g_partition_suite
+./ora_cleansp_suite
+./dml_associated_with_ddl_v3_suite
+./full_rollback_v3_suite
+./reactivate_subpartition_50_v3_suite
+./capture_arch_v1_suite
+./compare_table_view_v3_suite
+./transformation_v1_suite
+./hori_verti_suite
+./ora_cleansp_suite
+./lob_upd_v2_suite
+./lob_upd_otest_avoid_ociwrite_nocache_60_suite
+./CR141351_SPO532_suite
+./CR151555_SPO532_suite
+./system_flush_suite
+./mtp_stable_suite
+./ora_cleansp_suite
+./xmltype_clob_suite
+./sequence_suite
+#############################################################################################################
+#     PART III    ###########################################################################################
+#############################################################################################################
+./activate_demo_suite
+./ora_cleansp_suite
+./ddl_partition_v3_suite
+./ora_cleansp_suite
+#xml_rme_suite all xml columns are created as CLOB
+./xml_rme_suite
+#move to 8.5 new securefile compression
+#./varray_rme_suite
+./ddl_regr_rme_v3_suite
+./system_flush_suite
+##./udt_cache_on_suite
+./dml_ddl_udt_vp_v1_suite
+./regression_50_92_no_float_v1_suite
+./ddl_udt_50_quick_switch_v1_suite
+./comp_hori_verti_noq_v1_suite
+./ddl_45_disable_object_v2_suite
+./ddl_45_92_bounce_capture_v2_suite
+./add_drop_lob_suite
+./add_drop_bfile_suite
+#############################################################################################################
+#     PART IV    #########################################################################################
+#############################################################################################################
+./auto_add_setup_suite
+#11-21-2013 Ilya created auto_add_xml_v1_suite to replace auto_add_xmltype_clob_suite & auto_add_xml_rme_suite in 8.5
+#auto_add_xml_v1_suite all xml columns are created as CLOB
+./auto_add_xml_v1_suite
+#85replace./auto_add_xmltype_clob_suite
+#85replace./auto_add_xml_rme_suite
+./auto_add_11g_partition_suite
+./auto_add_dbms_lob_erase_suite
+./auto_add_direct_load_suite
+./auto_add_dload_lob_suite
+./auto_add_dml_associated_with_ddl_suite
+./auto_add_full_rollback_suite
+##./auto_add_iot_routing_hrz_vrt_suite
+##./auto_add_iot_routing_hrz_vrt_suite --8-4-2010 Julia comment out, cannot activate wildcard hp config
+##./ora_cleansp_suite
+##./auto_add_setup_suite
+##./auto_add_v1_suite    --replaced by auto_add_fbi_suite
+#./auto_add_fbi_suite  12/6/2013 Ilya modified suite to v1 with shorter run time
+./auto_add_fbi_v1_suite
+./auto_add_varray_rme_suite
+./auto_add_wildcard_suite
+./auto_add_ddl_case_sensitive_tabs_cols_v1_suite
+#./activation_typecheck_encr_compr_suite 7-29-2011 Julia replace with two separate suites compress and encrypt
+#./activation_typecheck_encrypt_suite   11-16-2013 Julia move to 8.0.1 TDE section
+#./activation_typecheck_compress_suite #prior to spo support compress, create tabs on splex_com expect activation to fail
+./activation_typecheck_suite
+./alter_table_typecheck_suite
+./sync_regression_reg_dynamic_suite
+./sync_regression_part_dynamic_rme_suite

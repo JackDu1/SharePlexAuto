@@ -1,0 +1,58 @@
+#!/usr/bin/expect --
+# 5-16-2016 replace TelnetLogin with Candy's SshLogIn
+# =====================================================================
+# Expect script that executes mss_cleansp
+# =====================================================================
+# set timeout -1
+
+source $env(AUTO_EXPECT_DIR)/NetLib.exp
+
+global UNIX_TRUE UNIX_FALSE PLATFORM OS WINDOWS
+
+set Stat $UNIX_TRUE
+set Plat $env(PLATFORM)
+
+# Login to host with ssh 
+#updated by candy in 05132016. replace telnet with ssh
+if { [ string compare "$PLATFORM" "$WINDOWS" ] == 0 } {
+   spawn telnet $env(this_hostname)
+} else {
+   if [regexp {.*AIX.*} $OS ] {
+      spawn telnet $env(this_hostname)
+   } else {
+      spawn ssh -l "Administrator" $env(this_hostname)
+   }
+}
+LogInToHost "Administrator" "habuqa"
+SetEnv $env(this_vardir)
+
+set timeout 500
+
+    #exp_internal 1
+
+    set WinPath [ UnixToWinPath "D" $env(this_proddir) ]
+    send "cd $WinPath\\bin\r"
+
+    expect "#"
+    send "mss_cleansp.exe sp_ss/$env(this_ora_spadmin)/$env(this_ora_spapass)\r"
+
+    while 1 {
+        expect {
+            ":"   { send "y\r" }
+            "#"      { break }
+            timeout { puts "Timedout running mss_cleansp"; set Stat $UNIX_FALSE }
+        }
+    }
+
+  #send "y\r" 
+
+# dump buffer to log
+set LogFile $env(AUTO_TEST_CASE_LOG)
+set Log [open $LogFile a]
+puts $Log $expect_out(buffer)
+close $Log
+
+#close session
+send "exit\r"
+expect EOF
+exit $Stat

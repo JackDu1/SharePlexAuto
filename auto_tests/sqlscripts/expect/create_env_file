@@ -1,0 +1,14 @@
+function create_env_file
+{
+	typeset host_type
+	typeset host_id
+	typeset tmp_file
+
+	host_type=$host_type
+	host_id=$host_id
+
+	env_tmp=$current_env.${host_type}${host_id}
+
+	cp $curr_dir/fs.vars $env_tmp
+	cp $curr_dir/tmp/$current_env
+}

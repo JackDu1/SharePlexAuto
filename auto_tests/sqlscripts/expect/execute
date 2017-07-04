@@ -1,0 +1,92 @@
+#!/usr/bin/expect --
+# =====================================================================
+# Expect script that sends a command to the config file.
+# =====================================================================
+source $env(AUTO_EXPECT_DIR)/NetLib.exp
+global UNIX_TRUE UNIX_FALSE PLATFORM OS WINDOWS
+
+set env(TERM) vt100
+
+# TW 10.06.2003 added lines below to remove curly brackets around double quotes passed in
+regsub -all "\{\"" $argv {"} new_argv
+regsub -all "\"\}" $new_argv {"} new_argv
+
+set timeout 60 
+set Status $UNIX_TRUE
+
+log_file $env(AUTO_TEST_CASE_LOG)
+
+#updated by candy in 05132016. replace telnet with ssh
+if { [ string compare "$PLATFORM" "$WINDOWS" ] == 0 } {
+   spawn telnet $env(this_hostname)
+} else {
+   if [regexp {.*AIX.*} $OS ] {
+      spawn telnet $env(this_hostname)
+   } else {
+      spawn ssh -l $env(this_spadmin) $env(this_hostname)
+   }
+}
+
+
+# Do authentication
+#TelnetLogIn $env(this_spadmin) $env(this_spapass)
+#SshLogIn $env(this_spapass)
+LogInToHost $env(this_spadmin) $env(this_spapass)
+
+SetEnv $env(this_vardir)
+
+#exp_internal 1 
+
+StartRemoteSpCtrl $env(this_proddir)
+
+set timeout 100000
+# Send the command
+send "$new_argv\r"
+expect {
+
+    -re ".*(Y/N).*" {
+
+        send "y\r"
+
+        expect {
+            -gl "\\>" { set Status $UNIX_TRUE }
+        }
+
+    }
+
+    -re ".*already is set to.*" {
+        puts "\nCommand Processed!"
+            set Status $UNIX_TRUE
+
+    }
+
+    -re ".*File does not exist.*>" { set Status $UNIX_FALSE }
+
+    -re ".*No valid tables were found in the config.*>" { set Status $UNIX_FALSE }
+
+    # This was causing lots of problems. I don't know what the purpose of this regex and why it should cause failure.
+    # Commenting out and leaving here incase something shows up later that would warrent this code.
+	#-re "\r(.*)\r\n(.*)" {
+	#    puts "Error: $expect_out(0,string)"
+    #        close
+	#    exit 1
+	#}
+
+	-gl "\\>" { set Status $UNIX_TRUE }
+
+    timeout   { 
+        puts "Timedout executing sp_ctrl command" 
+        set Status $UNIX_FALSE
+    } 
+}
+
+# Exit sp_ctrl
+send "exit\r"
+expect "#"
+
+# Exit telnet
+send "exit\r"
+expect EOF
+
+exit $Status
+

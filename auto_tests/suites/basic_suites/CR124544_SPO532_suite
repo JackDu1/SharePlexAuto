@@ -1,0 +1,11 @@
+#!/usr/bin/ksh
+#Kevin Bai 10/19/06 Create this suite to verify CR124544(clearquality) Out of sync on CHAINED ROW TABLES
+#Can add check if the chained row id are the same in Shareplex_rowid and chained_rows table
+#This suite is SUPP OFF specific
+#Originally used TC11185 for data generation. But it takes too long(may need to investigate), so use TC7822 instead.
+export suite_name=CR124544_SPO532_suite
+export AUTO_USE_WAIT_FOR_QUEUE=1
+export sp_user=sp_ddl_all
+export AUTO_OTEST_CFG="1307_v2"
+export AUTO_OTEST_INSTANCES="8"
+./driver $ENV_LIST cr124544_config_list cr124544_test_list y p

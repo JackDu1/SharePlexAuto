@@ -1,0 +1,9 @@
+sqlcmd  -Sopxqw01 -Uqarun -Pqarun -icr_pd_nchar.sql
+sqlcmd  -Sopxqw01 -Uqarun -Pqarun -icr_pd_nchar2.sql
+sqlcmd  -Sopxqw01 -Uqarun -Pqarun -icr_pd_nv.sql
+sqlcmd  -Sopxqw01 -Uqarun -Pqarun -icr_pd_nv2.sql
+sqlcmd  -Sopxqw01 -Uqarun -Pqarun -icr_pd_nv_nclob.sql
+sqlcmd  -Sopxqw01 -Uqarun -Pqarun -icr_pd_nv_nclob2.sql
+sqlcmd  -Sopxqw01 -Uqarun -Pqarun -icr_pd_nv_nclob_disable_inrow.sql
+
+

@@ -1,0 +1,10 @@
+#!/usr/bin/ksh
+export suite_name="xmltype_clob_securefile_suite"
+export AUTO_SUITE_ID=1544
+export AUTO_SKIP_SUITE_ORA_8I=1
+export AUTO_SKIP_SUITE_ORA_9I=1
+export AUTO_SKIP_SUITE_ORA_10G=1
+export AUTO_SKIP_SUITE_SPO_VER="7.5.X"
+export AUTO_SRC_SP_USER="sp_ddl_all"
+export AUTO_DST_SP_USER="sp_ddl_all"
+./driver $ENV_LIST xmltype_clob_securefile_conf_list xmltype_clob_securefile_test_list y a

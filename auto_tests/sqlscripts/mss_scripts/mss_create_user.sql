@@ -1,0 +1,20 @@
+USE sp_ss
+GO
+CREATE LOGIN sp_ss WITH PASSWORD=N'sp_ss', DEFAULT_DATABASE=sp_ss, CHECK_EXPIRATION=OFF, CHECK_POLICY=OFF
+GO
+ALTER SERVER ROLE [sysadmin] ADD MEMBER sp_ss
+GO
+
+USE [sp_ss]
+GO
+CREATE USER [sp_ss] FOR LOGIN [sp_ss]
+GO
+USE [sp_ss]
+GO
+ALTER ROLE [db_owner] ADD MEMBER [sp_ss]
+GO
+
+USE [sp_ss]
+GO
+CREATE SCHEMA [sp_ss] AUTHORIZATION [sp_ss]
+GO

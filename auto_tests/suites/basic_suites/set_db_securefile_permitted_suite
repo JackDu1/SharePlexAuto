@@ -1,0 +1,10 @@
+#!/usr/bin/ksh
+export suite_name="set_db_securefile_permitted_suite"
+export AUTO_SUITE_ID=2268
+export AUTO_SKIP_SUITE_ORA_8I=1
+export AUTO_SKIP_SUITE_ORA_9I=1
+export AUTO_SKIP_SUITE_ORA_10G=1
+export AUTO_SKIP_SUITE_SPO_VER="7.0.X"
+export AUTO_SRC_SP_USER="qarun"
+export AUTO_DST_SP_USER="qarun"
+./driver $ENV_LIST dummy_conf_list permitted_test_list y a

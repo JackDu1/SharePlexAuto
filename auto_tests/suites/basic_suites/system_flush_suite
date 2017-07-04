@@ -1,0 +1,6 @@
+#!/usr/bin/ksh
+export suite_name="system_flush_suite"
+export AUTO_SKIP_SUITE_ORA_8I=1
+export AUTO_SRC_SP_USER="qarun"
+export AUTO_DST_SP_USER="qarun"
+./driver $ENV_LIST flush_conf_list flush_test_list y a

@@ -1,0 +1,77 @@
+#!/usr/bin/expect --
+# =====================================================================
+# Expect script that executes ppas_cleansp
+# =====================================================================
+# HISTORY:                     
+# 9-09-2015 Ilya 
+# 5-26-2016 replace TelnetLogin with Candy's SshLogIn for Unix Only
+#
+# =========================================================================================================================
+#
+# set timeout -1
+
+source $env(AUTO_EXPECT_DIR)/NetLib.exp
+
+global UNIX_TRUE UNIX_FALSE OS WINDOWS
+
+set Stat $UNIX_TRUE
+set Plat $env(PLATFORM)
+SetEnv $env(this_vardir)
+# Login to host with ssh 
+
+set timeout 500
+
+# DO UNIX STUFF
+if { [ string compare "$Plat" "$UNIX" ] == 0} {
+    if [regexp {.*AIX.*} $OS ] {
+       spawn telnet $env(this_hostname)
+    } else {
+       spawn ssh -l $env(this_spadmin) $env(this_hostname)
+    }
+    LogInToHost $env(this_spadmin) $env(this_spapass)
+    # move core files to vardir because ora_clean will delete them
+    send "mv $env(this_vardir)/dump/* $env(this_vardir)\r"
+    expect "#"
+
+    # get ready to run ppas_cleansp
+    send "cd $env(this_proddir)/bin\r"
+    expect "#"
+
+    # run ppas_cleansp
+    send "./pg_cleansp sp_pg/$env(this_ora_spadmin)/$env(this_ora_spapass)\r"
+
+    while 1 {
+        expect {
+    	    "#"      { break }
+    	    " : "   { send "y\r" }
+            timeout { puts "Timedout running ppas_cleansp"; set Stat $UNIX_FALSE }
+        }
+    }
+
+# DO WINDOWS STUFF
+} else {
+
+    spawn telnet $env(this_hostname)
+    LogInToHost "Administrator" "habuqa"
+
+    #exp_internal 1
+
+    set WinPath [ UnixToWinPath "D" $env(this_proddir) ]
+    send "cd $WinPath\\bin\r"
+    expect "#"
+
+    send "pg_cleansp.exe sp_pg/$env(this_ora_spadmin)/$env(this_ora_spapass)\r"
+            expect *    { send "y\r" }
+
+}
+
+
+set LogFile $env(AUTO_TEST_CASE_LOG)
+set Log [open $LogFile a]
+puts $Log $expect_out(buffer)
+close $Log
+
+#close session
+send "exit\r"
+expect EOF
+exit $Stat

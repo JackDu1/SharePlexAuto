@@ -1,0 +1,102 @@
+#!/usr/bin/expect --
+
+source $env(AUTO_EXPECT_DIR)/NetLib.exp
+global UNIX_FALSE UNIX_TRUE WINDOWS UNIX PLATFORM OS
+
+set current_test   [open [lindex $argv 0] r]
+set otest_path     [lindex $argv 1]
+set otest_version  [lindex $argv 2]
+set LocalFlag      [lindex $argv 3] 
+set NoOCIWrite     [lindex $argv 4]
+set RandomOCIWrite [lindex $argv 5]
+
+set timeout 40
+
+set Stat $UNIX_TRUE
+
+#list GlobalCheck (info globals AUTO_OTEST_OCI_RANDOM)
+#info globals AUTO_OTEST_OCI_RANDOM
+
+
+# Log the execution of otest up till the first prompt 
+
+# Run otest localy on automation machine
+if { [ string compare [string toupper $LocalFlag] "REMOTE" ] != 0  } {
+    puts "Running otest on local automation machine..."
+    set env(OTEST_TAB_LIST) "$env(AUTO_WORK_DIR)"
+    set env(OTEST_SERVER) $env(this_tns)
+    log_file $env(AUTO_TEST_CASE_LOG)
+    spawn $otest_path/$otest_version
+
+# Run otest on test machine
+} else {
+    puts "Running otest on remote test machine..."
+    #updated by candy in 05162016. replace telnet with ssh
+    if { [ string compare "$PLATFORM" "$WINDOWS" ] == 0 } {
+       spawn telnet $env(this_hostname)
+    } else {
+       if [regexp {.*AIX.*} $OS ] {
+           spawn telnet $env(this_hostname)
+       } else {
+          spawn ssh -l $env(this_spadmin) $env(this_hostname)
+       }
+    }
+    LogInToHost $env(this_spadmin) $env(this_spapass)
+    SetEnv $env(this_vardir)
+    log_file $env(AUTO_TEST_CASE_LOG)
+    send "cd $otest_path\r"
+    expect "#"
+    send "./$otest_version\r"
+}
+
+sleep 2
+
+expect {
+	"\>" {}
+	"# " {puts "run otest failed!";exit $Stat}
+	-re "\n*not found" {puts "otest not installed on this box";exit $Stat}
+	timeout {puts "Timeout";exit $Stat}
+}
+
+
+# got first prompt, no stop logging.
+# We don't want to log all the stuff. It's too much.
+log_file
+
+set timeout -1
+
+# check for oci options
+if { [ string compare $NoOCIWrite "Y" ] == 0  } {
+    send "set not using ociwrite \r"
+    expect "\>"
+}
+
+if { [ string compare $RandomOCIWrite "Y" ] == 0  } {
+    send "set random ociwrite\r"
+    expect "\>"
+}
+
+
+
+#exp_internal 1
+
+while { [gets $current_test line] != -1} {
+    send "$line\r"
+
+    while 1 {
+        expect {
+            "\>"                 { break }
+            "Memory fault"       { set Stat $UNIX_FALSE; break }
+            "Segmentation fault" { set Stat $UNIX_FALSE; break }
+            "core dumped"        { set Stat $UNIX_FALSE; break }
+        }
+    }
+
+}
+
+# Close otest
+send "exit\r"
+expect "#"
+close $current_test
+exit $Stat
+

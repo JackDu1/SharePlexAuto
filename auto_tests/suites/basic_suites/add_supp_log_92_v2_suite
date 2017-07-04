@@ -1,0 +1,4 @@
+#Created by Anne Tran 06/09/03 To drop supplemental log than add supplemental minimal level (database level) log
+#modified by KPD 09/08/06 to drop supplemental log with PK UK and MIN
+export suite_name=add_supp_log_92_v2_suite
+./driver $ENV_LIST dummy_conf_list add_supp_log_92_v2 y a

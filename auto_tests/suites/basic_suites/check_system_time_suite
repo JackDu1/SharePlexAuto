@@ -1,0 +1,9 @@
+#!/usr/bin/ksh
+export suite_name="check_system_time_suite"
+export AUTO_SUITE_ID=1870
+export AUTO_SKIP_SUITE_ORA_8I=1
+export AUTO_SKIP_SUITE_WINDOWS=1
+export AUTO_SKIP_SUITE_SPO_VER="4.X"
+export AUTO_SRC_SP_USER="qarun"
+export AUTO_DST_SP_USER="qarun"
+./driver $ENV_LIST system_time_conf_list system_time_test_list y a

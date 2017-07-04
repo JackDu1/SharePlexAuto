@@ -1,0 +1,10 @@
+#!/usr/bin/ksh
+export suite_name="multi_12_otest_4k_lob_suite"
+export AUTO_SUITE_ID=3308
+export AUTO_SKIP_SUITE_ORA_8I=1
+export AUTO_SKIP_SUITE_ORA_9I=1
+# Custom driver code below. This is user generated. Default driver not used
+export AUTO_OTEST_CFG="88884"
+#export AUTO_OTEST_CFG="8854"
+export AUTO_OTEST_INSTANCES="12"
+./driver $ENV_LIST multi_8_otest_list_v2  multi_otest_generic_v1 y p

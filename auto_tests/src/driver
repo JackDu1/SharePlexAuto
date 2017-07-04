@@ -1,0 +1,221 @@
+#!/usr/bin/ksh
+# set -x
+# ==============================================================================
+# Name: Driver Script For SharePlex For Oracle
+# Dependencies:splex.ksh
+# Object:
+# version:
+# parameters:
+# ==============================================================================
+
+################################################################################
+#                       ROLL OUTS TO EVERYONE
+################################################################################
+#09-13-04 v 1.9.2.42.2.61.2.34  rel-2-0-1
+
+
+[[ -n "$AUTO_DEBUG" ]] && set -o xtrace;export PS4='$LINENO:$0: '
+
+
+#############################################################################
+# LIBRARIES 
+#############################################################################
+. $AUTO_ROOT_DIR/syslib.ksh
+. $AUTO_ROOT_DIR/splex.ksh      
+. $AUTO_ROOT_DIR/driverlib.ksh  
+
+export ENV="$AUTO_ROOT_DIR/syslib.ksh"
+
+
+#############################################################################
+# EXPORTS AT THE SUITE LEVEL
+#############################################################################
+export AUTO_TEST_LIST             # File with list of testcases
+export AUTO_CURRENT_TEST          # Testcase currently being executed
+export AUTO_SUITE_RUN_ID          # Unique ID for run of current suite
+export AUTO_TEST_RUN_ID           # Unique ID for run of current test
+export AUTO_CURRENT_TEST_ID       # ID # of the current testcase
+export AUTO_CURRENT_CONFIG        # Shareplex config currently being executed
+export AUTO_CURRENT_CONF_TMP      # Location of temp config. Copied to test dir later
+export AUTO_TEST_CASE_LOG         # Log path/file of current test case
+export AUTO_SUITE_LOG             # Log path/file for the suite
+export AUTO_TABLE_LIST            # Path/file contains list of tabs in curr cfg
+export AUTO_TESTER_DIR            # Dir for testers results/working files
+export AUTO_SRC_SP_USER           # Source tables in Splex conf will be changed to this
+export AUTO_DST_SP_USER           # Dest tables in Splex conf will be chaned to this
+export AUTO_ERR_OPT               # What to do if error is found
+export AUTO_CONFIG_LIST           # Name of the config list file
+export AUTO_CURRENT_SUITE=$suite_name  # suite_name is exported in suite file
+export AUTO_DEADLOCK_FLAG=$FALSE  # Flags true when deadlock occurs
+export AUTO_TEST_NUMBER=0         # Number of the current test. Incremented.
+
+#############################################################################
+# LOCAL VARIABLES
+#############################################################################
+export AUTO_SUITE_START_TIME=`date +"%s"` # DO NOT TOUCH THIS ONE
+
+
+#############################################################################
+#                           MAIN PROGRAM
+#############################################################################
+
+# Check that 5 arguments where given to driver
+[[ $# != 5 ]] && DriverUsage && exit 1
+
+# Env list now gets taken care of in master suite
+# first arg from suite is env list, which is not needed anymore
+junk=$1
+
+# Arguements passed in from suite
+AUTO_CONFIG_LIST=$2
+AUTO_TEST_LIST=$3
+AUTO_ERR_OPT=$4
+AUTO_RUN_OPTION=$5
+
+
+print "\n#############################################"
+print "# START SUITE: $AUTO_CURRENT_SUITE"
+print "#\t`date`"
+print "#############################################\n"
+
+# CODE TO IMPLEMENT SUITE TABLE
+# Get suite information from repository
+#Reason=$(GetSuiteInfo) || {
+#    SetupSuiteLog
+#   LogIt "Failed:: $Reason"
+#   exit 1
+#}
+
+# Check if any skip flags are set
+Reason=$(ChkSkipFlags) || {
+
+    # Flags are set, skip this suite
+    SetupSuiteLog
+    _SuiteLogSuiteLstHeader
+    _WriteSuiteSkipTxt "$Reason"
+    InsertSuiteResults
+    EndSuite
+    exit 
+}
+
+
+# Exit suite if testlist is not found
+ChkTestList $AUTO_TEST_LIST || exit 127
+
+# Check the syntax of all the test cases in the suite
+print "Checking test cases in $AUTO_CURRENT_SUITE suite."
+
+ChkSuiteSyntax $AUTO_TEST_LIST || {
+    print "#########################################################"
+    print "              ERRORS found in suite!"
+    print "      Please check the above test cases in your suite."
+    print "#########################################################\n\n"
+}
+
+#check_suite
+
+
+SetupSuiteLog
+
+
+BackupParamDB src
+BackupParamDB dst
+
+_SuiteLogShowParamDB
+_SuiteLogSuiteLstHeader
+
+InsertSuiteResults
+
+
+# RUN THE TEST CASES
+case ${AUTO_RUN_OPTION} in
+a)
+
+    #### Start loop 2 on CONFIGS ####
+    for AUTO_CURRENT_CONFIG in `cat $AUTO_ROOT_DIR/configs/$AUTO_CONFIG_LIST`;do
+
+        #Skip config if commented out or blank
+        if ! print $AUTO_CURRENT_CONFIG | grep '^[[:blank:]]*[^[:blank:]#]' > /dev/null; then
+            print "Config $AUTO_CURRENT_CONFIG is commented out or blank, Skipping...."
+            continue
+        fi
+
+        print "\n#############################################"
+        print "# START CONFIG: $AUTO_CURRENT_CONFIG"
+        print "#\t`date`"
+        print "#############################################\n"
+
+        # Create config file from template or die
+        print "Creating conifg: $AUTO_CURRENT_CONFIG"
+        CreateSplexConfig
+
+        # Copy config to source host or die
+        print "Copying Shareplex config to $AUTO_SRC_HOST_NAME"
+        CopySPOConfigToHost src 0
+
+        #### Start loop 3 on TESTS ####
+        for AUTO_CURRENT_TEST in `cat $AUTO_ROOT_DIR/tests/$AUTO_TEST_LIST` ;do
+
+            export current_test=$AUTO_CURRENT_TEST # TODO: remove later
+
+            #Skip config if commented out or blank
+            if ! print $AUTO_CURRENT_TEST | grep '^[[:blank:]]*[^[:blank:]#]' > /dev/null; then
+                print "Test $AUTO_CURRENT_TEST is commented out or blank, Skipping...."
+                continue
+            fi
+
+            ((AUTO_TEST_NUMBER=$AUTO_TEST_NUMBER+1))
+            RunTestCase
+            TestResult=$?
+
+            SuiteCleanUp $TestResult
+        done
+
+        print "\n#############################################"
+        print "# FINISHED CONFIG: $AUTO_CURRENT_CONFIG"
+        print "#\t`date`"
+        print "#############################################\n"
+
+    done
+
+;;
+
+
+p)
+    i=0 # Counter for arrays
+
+    print "##### Running with 'p' option #####"
+
+    set -A config_array `grep '^[[:blank:]]*[^[:blank:]#]' $AUTO_ROOT_DIR/configs/$AUTO_CONFIG_LIST`
+    set -A test_array `grep '^[[:blank:]]*[^[:blank:]#]' $AUTO_ROOT_DIR/tests/$AUTO_TEST_LIST`
+
+    # Run
+    while [ $i -lt ${#config_array[*]} ]; do
+
+        AUTO_CURRENT_CONFIG=${config_array[$i]}
+        AUTO_CURRENT_TEST=${test_array[$i]}
+
+        # Create config file from template or die
+        print "Creating conifg: $AUTO_CURRENT_CONFIG"
+        CreateSplexConfig
+
+        # Copy config to source host or die
+        print "Copying Shareplex config to $AUTO_SRC_HOST_NAME"
+        CopySPOConfigToHost src 0
+        ((AUTO_TEST_NUMBER=$AUTO_TEST_NUMBER+1))
+
+        RunTestCase
+        TestResult=$?
+
+        ((i=$i+1))
+
+        SuiteCleanUp $TestResult
+     done
+     ;;
+
+esac
+
+EndSuite
+
+
+exit 0

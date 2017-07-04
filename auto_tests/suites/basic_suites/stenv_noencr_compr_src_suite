@@ -1,0 +1,9 @@
+#!/usr/bin/ksh
+export suite_name="stenv_noencr_compr_src_suite"
+export AUTO_SUITE_ID=2127
+export AUTO_SKIP_SUITE_ORA_8I=1
+export AUTO_SKIP_SUITE_ORA_9I=1
+export AUTO_SKIP_SUITE_SPO_VER="7.X"
+export AUTO_SRC_SP_USER="system"
+export AUTO_DST_SP_USER="system"
+./driver $ENV_LIST create_stenv_conf_list  stenv_noencr_compr_src_test_list y a

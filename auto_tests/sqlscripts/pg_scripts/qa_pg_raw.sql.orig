@@ -1,0 +1,14 @@
+DROP TABLE IF EXISTS sp_pg.qa_raw;
+
+
+CREATE TABLE sp_pg.qa_raw
+(
+  COL_NUMBER   numeric(25,2) not null,
+  COL_RAW1     bytea(100),
+  COL_RAW2     bytea(200),
+  COL_RAW3     bytea(500),
+  COL_RAW4     bytea(1500),
+  COL_RAW5     bytea(2000),
+PRIMARY KEY(COL_NUMBER)
+);
+

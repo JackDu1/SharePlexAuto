@@ -1,0 +1,13 @@
+#!/usr/bin/ksh
+export suite_name="rowid_repair_suite"
+export AUTO_SUITE_ID=1546
+export AUTO_SKIP_SUITE_ORA_8I=1
+export AUTO_SKIP_SUITE_SPO_VER="7.1"
+export AUTO_SRC_SP_USER="sp_ddl_all"
+export AUTO_DST_SP_USER="sp_ddl_all"
+# Custom driver code below. This is user generated. Default driver not used
+if  [ "$AUTO_SRC_ORA_S_VER" == "9i" ] || [ "$AUTO_DST_ORA_S_VER" == "9i" ] || [[ "$AUTO_SRC_SID" = +(*up) ]] || [[ "$AUTO_DST_SID" = +(*up) ]]; then
+./driver $ENV_LIST rowid_repair_9i_conf_list rowid_repair_test_list y p
+else
+./driver $ENV_LIST rowid_repair_conf_list rowid_repair_test_list y p
+fi

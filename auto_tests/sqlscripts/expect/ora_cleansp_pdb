@@ -1,0 +1,90 @@
+#!/usr/bin/expect --
+# 5-16-2016 replace TelnetLogin with Candy's SshLogIn
+# ==========================================================================================================
+# Expect script that executes ora_cleansp using TNS connection when Oracle instance is pdb (8-11-2015 Julia)
+# ==========================================================================================================
+# HISTORY:                     
+# 8-20-2015 Julia ora_cleansp_pdb.v2: get ora_cleansp_pdb to work on Windows with user input "y" when asked to confirm (SPO-1215)
+#
+# ===============================================================================================================================
+#
+# set timeout -1
+
+source $env(AUTO_EXPECT_DIR)/NetLib.exp
+
+global UNIX_TRUE UNIX_FALSE OS
+
+set Stat $UNIX_TRUE
+set Plat $env(PLATFORM)
+#SetEnv $env(this_vardir)
+# Login to host with ssh
+set timeout 500
+
+# DO UNIX STUFF
+if { [ string compare "$Plat" "$UNIX" ] == 0} {
+    if [regexp {.*AIX.*} $OS ] {
+       spawn telnet $env(this_hostname)
+    } else {
+       spawn ssh -l $env(this_spadmin) $env(this_hostname)
+    }
+    LogInToHost $env(this_spadmin) $env(this_spapass)
+    SetEnv $env(this_vardir)
+    # move core files to vardir because ora_clean will delete them
+    send "mv $env(this_vardir)/dump/* $env(this_vardir)\r"
+    expect "#"
+
+    # get ready to run ora_cleansp
+    send "cd $env(this_proddir)/bin\r"
+    expect "#"
+    send "IGNORE_RUN=1\r"
+    expect "#"
+    send "export IGNORE_RUN\r"
+    expect "#"
+
+    # run ora_cleansp
+    send "./ora_cleansp $env(this_ora_spadmin)/$env(this_ora_spapass)@$env(this_tns)\r"
+
+    while 1 {
+        expect {
+    	    "(N) "   { send "y\r" }
+    	    "#"      { break }
+            timeout { puts "Timedout running ora_cleansp"; set Stat $UNIX_FALSE }
+        }
+    }
+
+# DO WINDOWS STUFF
+} else {
+
+    #TelnetLogIn Administrator habuqa
+    spawn telnet $env(this_hostname)
+    LogInToHost "Administrator" "habuqa"
+
+    #exp_internal 1
+
+    set WinPath [ UnixToWinPath "D" $env(this_proddir) ]
+    send "cd $WinPath\\bin\r"
+    expect "#"
+
+    send "ora_cleansp.exe $env(this_ora_spadmin)/$env(this_ora_spapass)@$env(this_tns)\r"
+            expect *    { send "y\r" }
+
+#    while 1 {
+#        expect {
+#            "(N) "   { send "y\r" }
+#            "#"      { break }
+#            timeout { puts "Timedout running ora_cleansp"; set Stat $UNIX_FALSE }
+#        }
+#    }
+
+}
+
+
+set LogFile $env(AUTO_TEST_CASE_LOG)
+set Log [open $LogFile a]
+puts $Log $expect_out(buffer)
+close $Log
+
+#close session
+send "exit\r"
+expect EOF
+exit $Stat

@@ -1,0 +1,16 @@
+-- backed up by dzhu
+-- 6/29/2016
+-- aiming for PostgreSQL
+DROP TABLE IF EXISTS sp_pg.qa_blob_lt32k;
+
+create table sp_pg.qa_blob_lt32k
+(
+  COL_NUMBER  numeric(25,2) not null,
+  COL_BLOB1   image,
+  COL_BLOB2   image,
+  COL_BLOB3   image,
+  COL_BLOB4   image,
+  COL_BLOB5   image,
+PRIMARY KEY(COL_NUMBER)
+);
+

@@ -1,0 +1,464 @@
+set PROMPT "\r\n.*# $"
+set UNIX_TRUE   0
+set UNIX_FALSE  1
+set WINDOWS     "Windows_NT"
+set UNIX        "Unix"
+set PLATFORM   "$env(PLATFORM)"
+set FTP_PROMPT "ftp> \$"
+set OS "$env(this_os)"
+
+proc ShowArguments {} {
+    global argv
+
+    set argc [llength $argv]
+
+    for {set i 0} {$i<$argc} {incr i} {
+        puts "arg $i: [lindex $argv $i]"
+
+    }
+}
+
+
+proc FTPLogin {User Password} {
+
+    global FTP_PROMPT PLATFORM UNIX
+    set OldTimeout timeout
+    set timeout 180 
+    set FtpPrompt "ftp> \$"
+
+    set Counter 1
+    set MaxTries 5
+    set SleepTries 15
+
+    while 1 {
+
+        expect {
+            -re "(Name|User)*: $" { send "$User\r"            }       
+            "Login incorrect"     { puts "Invalid login for FTP"; return 0 }
+            -re "Password:$"      { send "$Password\r"        }       
+            -re $FTP_PROMPT       { break                  }       
+            timeout               { puts "Timedout logging in ftp"; return 0 }
+            eof                   { puts "EOF"; return 0      }
+        }       
+
+    }
+
+    # Set umask on Unix just incase other users need transfered file
+    # Windows doesn't have umask command. Need to find another way to
+    # set permissions.
+    if { [ string compare "$PLATFORM" "$UNIX" ] == 0} {
+        send "umask 007\r"
+        expect -re $FTP_PROMPT
+    }
+
+
+}
+
+proc SetEnv { VarDir } {
+  
+    global PLATFORM UNIX WINDOWS
+
+    if { [ string compare "$PLATFORM" "$UNIX" ] == 0} {
+        #send ". /splex/$Sid/oracle_env.tmp\r"
+        send ". $VarDir/oracle_env.tmp\r"
+        expect "#"
+    }
+
+}
+
+
+proc FTPChangeRemoteDir { Dir } {
+
+    global FTP_PROMPT
+
+    send "cd $Dir\r"
+
+    # Change to target directory on host
+    while 1 {
+
+        expect {
+
+            -re "550.*: No such file or directory"  {
+                puts "$expect_out(0,string)"; return 0
+            }
+
+            -re "550.*cannot find.*ftp> " {
+                puts "$expect_out(0,string)"; return 0
+            }
+
+            -re "250 CWD command successful.*ftp>" { break }
+            timeout         { puts "Timedout changing dir in ftp"; return 0 }
+            eof             { puts "EOF"; return 0      }
+        }
+
+    }
+
+    return 1
+}
+
+proc FTPExit {} {
+
+    send "bye\r"
+    expect "221"
+
+}
+
+proc FTPTransFile {SrcFile DstFile TransType Mode} {
+
+    global FTP_PROMPT
+
+    set OldTimeout timeout
+
+    # Set timeout to 20 minutes for big files
+    set timeout 1200
+
+    send "$Mode\r"
+    expect -re $FTP_PROMPT
+
+    # put or get a file
+    switch -- $TransType \
+         "get" {
+            send "get $SrcFile $DstFile\r"
+
+       } "put" {
+            send "put $SrcFile $DstFile\r"
+
+       } default {
+            puts "Error: Unknown transfer type in NetLib.exp"
+            puts "Transfer type must be put or get"
+            return 0
+       }
+
+    # Wait for prompt 
+    while 1 {
+
+        expect {
+            ".*: File not found.*ftp> $" { 
+                puts "$expect_out(0,string)"; return 0
+            }
+
+            "Permission denied.*ftp> $" {
+                puts "$expect_out(buffer)"; return 0
+            }
+
+            "No such file or directory" {
+                puts "$expect_out(buffer)"; return 0
+            }
+
+            "cannot find" {
+                puts "$expect_out(buffer)"; return 0
+            }
+
+            "Could not create file" {
+                puts "$expect_out(buffer)"; return 0
+	        }
+
+            -re "Transfer complete.*bytes sent.*ftp> $"     { break }
+            -re "Transfer complete.*bytes received.*ftp> $" { break }
+            -re "ASCII Transfer complete.*ftp> $"           { break }
+            -re "Binary Transfer complete.*ftp> $"          { break }
+            -re "Transfer complete.*ftp> $"                 { break }
+            -re "File receive OK.*ftp> $"                   { break }
+            -re "File send OK.*ftp> $"	                    { break }
+            -re "Text file busy.*ftp> $"                    { break }
+
+
+            timeout { puts "Timedout putting file in ftp"; return 0 }
+            eof     { puts "EOF"; return 0      }
+        }
+
+    }
+
+}
+
+proc FTPPutFile {SrcFile DstFile Mode} {
+
+    global FTP_PROMPT
+
+    set OldTimeout timeout
+    set timeout 20
+
+    # Change directories or return false
+    #if {[FTPChangeRemoteDir "$DstDir"] == 0} { return 0 } 
+
+    send "$Mode\r"
+    expect -re $FTP_PROMPT
+
+    send "put $SrcFile $DstFile\r"
+
+    while 1 {
+
+        expect {
+            ".*: File not found.*ftp> $" { 
+                puts "$expect_out(0,string)"; return 0
+            }
+
+            "No such file or directory" {
+                puts "$expect_out(buffer)"; return 0
+            }
+
+            -re "Transfer complete.*bytes sent.*ftp> $" { break }
+            timeout { puts "Timedout putting file in ftp"; return 0 }
+            eof     { puts "EOF"; return 0      }
+        }
+
+    }
+
+    set timeout $OldTimeout
+
+    return 1
+}
+
+proc TelnetLogIn {User Password} {
+
+    set OldTimeout timeout
+    set timeout 180 
+
+    set OsPrmpt "(\[^\r\n]*)(# )(\[^\r\n]*)$"
+
+    #exp_internal 1 
+    while 1 {
+
+        expect {
+            "ogin: $"    { send "$User\r"            }
+            -re ".*assword.*"   { send "$Password\r"        }
+            "omain: $"   { send "\r"                 }
+            -re $OsPrmpt { break                  }
+            timeout      { puts "Timedout logging in telnet"; return 0 }
+            eof          { puts "EOF"; return 0      }
+        }
+
+    }
+
+    set timeout $OldTimeout
+
+    return 1
+}
+
+#updated by candy in 05132016, replace telnet with ssh
+proc SshLogIn {Password} {
+
+    set OldTimeout timeout
+    set timeout 45
+
+    set OsPrmpt "(\[^\r\n]*)(# )(\[^\r\n]*)$"
+
+    while 1 {
+        expect {
+            "(yes/no)?"  {
+               send "yes\r";
+               expect {
+                 -re ".*assword.*"   { send "$Password\r" }
+                 -re $OsPrmpt { break }
+                 timeout      { puts "Timedout logging in ssh"; return 0 }
+                 eof          { puts "EOF"; return 0      }
+               }
+            }
+            -re ".*assword.*"   { send "$Password\r" }
+            -re $OsPrmpt { break }
+            timeout      { puts "Timedout logging in ssh"; return 0 }
+            eof          { puts "EOF"; return 0      }
+        }
+
+    }
+
+    set timeout $OldTimeout
+
+    return 1
+}
+
+proc StartSQLPlus {User Password Tns} {
+
+    global PLATFORM WINDOWS
+    set OldTimeout timeout
+    set timeout 90 
+
+
+    send "sqlplus $User/$Password@$Tns\r"
+
+    #exp_internal 1 
+    while 1 {
+
+        expect {
+            -re ".*ORA-.*" { puts "Oracle connection failed"; return 0 }
+            -re ".*SP2-.*" { puts "Oracle connection failed"; return 0 }
+            "SQL>"         {break}
+            timeout        { puts "Timedout logging in to oracle"; return 0 }
+            eof            { puts "EOF"; return 0 }
+        }
+
+    }
+
+    set timeout $OldTimeout
+
+    return 1
+}
+
+
+
+
+# On Unix echo back the status of the command
+proc GetRemoteCmdStatus {} {
+
+    set CmdReturn 1
+
+    send "echo status:$?:\r"
+
+    #exp_internal 1 
+    while 1 {
+        expect {
+            -re "(.*status:)(0|1|2)(:.*)" { set CmdReturn $expect_out(2,string); break; }
+            "#"        break 
+        }
+    }
+
+    return $CmdReturn     
+
+}
+
+
+proc CmdAndExpect {Cmd TimeOut} {
+
+    # Get global vars
+    global PROMPT
+
+    set timeout $TimeOut
+
+    send "$Cmd\r"
+
+    #exp_internal 1 
+
+    expect {
+
+        timeout { 
+            puts "Timed out waiting for prompt"
+            return 0
+        }
+
+        "*#" { return 1}
+    }
+
+    #always fail if go this far
+    return 0 
+}
+
+proc TelnetSuRoot { Password } {
+
+    global PROMPT
+
+    set timeout 25
+
+    send "su\r"
+
+    while 1 {
+
+        expect {
+            "assword:"   { send "$Password\r"        }
+            "orry"       { puts "Invalid Root PWD"; return 0 }
+            "#"          { break                  }
+            timeout      { puts "Timedout logging in telnet"; return 0 }
+            eof          { puts "EOF"; return 0      }
+        }
+
+    }
+
+    send "ksh\r"
+
+    return 1
+
+}
+
+proc TelnetLogOut {} {
+
+    set timeout 15
+
+    send "exit\r"
+
+    while 1 {
+
+        expect {
+	    -re "You have running jobs.*#" { send "exit\r" }
+            eof     { break }
+            "#"     { send "exit\r" }
+            timeout { break }
+        }
+
+    }
+
+}
+
+
+proc StartRemoteSpCtrl { OptDir} {
+
+    global PLATFORM UNIX WINDOWS
+
+    set timeout 1500
+
+
+    # DO UNIX STUFF
+    if { [ string compare "$PLATFORM" "$UNIX" ] == 0} {
+        send "cd $OptDir/bin\r"
+        expect "#"
+        send "./sp_ctrl\r"
+    # DO WINDOWS STUFF
+    } else {
+
+        set WinPath [ UnixToWinPath "D" $OptDir ]
+        #send "cd $OptDir\\bin\r"
+        #send "cd $WinPath\\bin\r"
+        #expect "#"
+        send "sp_ctrl.exe\r"
+
+    }
+
+    expect {
+        "sp_ctrl*>" {}
+        timeout {
+                puts "Timed out waiting for sp_ctrl prompt"
+                return 0
+            }
+        }
+
+
+}
+
+
+proc UnixToWinPath {Drive Path} { 
+
+    regsub -all "/" $Path "\\\\" NewPath 
+
+    set FinalPath "$Drive:$NewPath"
+
+    return $FinalPath
+
+}
+
+#added by candy in 05242016. connect to Windows and Unix AIXs with telnet, to other Unix machines with ssh
+#proc ConnectToHost { username hostname } {
+#   global PLATFORM OS
+#
+#   if { [ string compare "$PLATFORM" "Windows" ] == 0 } {
+#      spawn telnet $hostname
+#   } else {
+#      if [regexp {.*AIX.*} $OS ] {
+#         spawn telnet $hostname
+#      } else {
+#         spawn ssh -l $username $hostname
+#      }
+#   }
+#}
+
+#added by candy in 05242016. connect to Windows and Unix AIXs with telnet, to other Unix machines with ssh
+proc LogInToHost { username password } {
+   global PLATFORM OS WINDOWS
+
+   if { [ string compare "$PLATFORM" "$WINDOWS" ] == 0 } {
+      TelnetLogIn $username $password
+   } else {
+      if [regexp {.*AIX.*} $OS ] {
+         TelnetLogIn $username $password
+      } else {
+         SshLogIn $password
+      }
+   }
+}
